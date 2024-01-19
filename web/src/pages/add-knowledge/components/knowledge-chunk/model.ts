@@ -8,6 +8,7 @@ export interface chunkModelState {
   total: number;
   isShowCreateModal: boolean;
   chunk_id: string;
+  doc_id: string;
   chunkInfo: any
 }
 export interface chunkgModelType {
@@ -33,6 +34,7 @@ const Model: chunkgModelType = {
     total: 0,
     isShowCreateModal: false,
     chunk_id: '',
+    doc_id: '',
     chunkInfo: {}
   },
   subscriptions: {
