@@ -3,10 +3,12 @@ import re
 from io import BytesIO
 from docx import Document
 import numpy as np
-from rag.app import bullets_category, BULLET_PATTERN, is_english, tokenize
+from rag.parser import bullets_category, is_english, tokenize, remove_contents_table, hierarchical_merge, \
+    make_colon_as_title
 from rag.nlp import huqie
 from rag.parser.docx_parser import HuDocxParser
 from rag.parser.pdf_parser import HuParser
+from rag.settings import cron_logger
 
 
 class Docx(HuDocxParser):
@@ -17,10 +19,20 @@ class Docx(HuDocxParser):
         line = re.sub(r"\u3000", " ", line).strip()
         return line
 
-    def __call__(self, filename, binary=None):
+    def __call__(self, filename, binary=None, from_page=0, to_page=100000):
         self.doc = Document(
             filename) if not binary else Document(BytesIO(binary))
-        lines = [self.__clean(p.text) for p in self.doc.paragraphs]
+        pn = 0
+        lines = []
+        for p in self.doc.paragraphs:
+            if pn > to_page:break
+            if from_page <= pn < to_page and p.text.strip(): lines.append(self.__clean(p.text))
+            for run in p.runs:
+                if 'lastRenderedPageBreak' in run._element.xml:
+                    pn += 1
+                    continue
+                if 'w:br' in run._element.xml and 'type="page"' in run._element.xml:
+                    pn += 1
         return [l for l in lines if l]
 
 
@@ -38,49 +50,15 @@ class Pdf(HuParser):
         start = timer()
         self._layouts_paddle(zoomin)
         callback(0.77, "Layout analysis finished")
-        print("paddle layouts:", timer()-start)
-        bxs = self.sort_Y_firstly(self.boxes, np.median(self.mean_height) / 3)
-        # is it English
-        eng = is_english([b["text"] for b in bxs])
-        # Merge vertically
-        i = 0
-        while i + 1 < len(bxs):
-            b = bxs[i]
-            b_ = bxs[i + 1]
-            if b["page_number"] < b_["page_number"] and re.match(r"[0-9  •一—-]+$", b["text"]):
-                bxs.pop(i)
-                continue
-            concatting_feats = [
-                b["text"].strip()[-1] in ",;:'\"，、‘“；：-",
-                len(b["text"].strip())>1 and b["text"].strip()[-2] in ",;:'\"，‘“、；：",
-                b["text"].strip()[0] in "。；？！?”）),，、：",
-            ]
-            # features for not concating
-            feats = [
-                b.get("layoutno",0) != b.get("layoutno",0),
-                b["text"].strip()[-1] in "。？！?",
-                eng and b["text"].strip()[-1] in ".!?",
-                b["page_number"] == b_["page_number"] and b_["top"] - \
-                b["bottom"] > self.mean_height[b["page_number"] - 1] * 1.5,
-                b["page_number"] < b_["page_number"] and abs(
-                    b["x0"] - b_["x0"]) > self.mean_width[b["page_number"] - 1] * 4
-            ]
-            if any(feats) and not any(concatting_feats):
-                i += 1
-                continue
-            # merge up and down
-            b["bottom"] = b_["bottom"]
-            b["text"] += b_["text"]
-            b["x0"] = min(b["x0"], b_["x0"])
-            b["x1"] = max(b["x1"], b_["x1"])
-            bxs.pop(i + 1)
+        cron_logger.info("paddle layouts:".format((timer()-start)/(self.total_page+0.1)))
+        self._naive_vertical_merge()
 
         callback(0.8, "Text extraction finished")
 
-        return [b["text"] + self._line_tag(b, zoomin) for b in bxs]
+        return [b["text"] + self._line_tag(b, zoomin) for b in self.boxes]
 
 
-def chunk(filename, binary=None, from_page=0, to_page=100000, callback=None):
+def chunk(filename, binary=None, from_page=0, to_page=100000, callback=None, **kwargs):
     doc = {
         "docnm_kwd": filename,
         "title_tks": huqie.qie(re.sub(r"\.[a-zA-Z]+$", "", filename))
@@ -116,50 +94,12 @@ def chunk(filename, binary=None, from_page=0, to_page=100000, callback=None):
     # is it English
     eng = is_english(sections)
     # Remove 'Contents' part
-    i = 0
-    while i < len(sections):
-        if not re.match(r"(contents|目录|目次|table of contents)$", re.sub(r"( | |\u3000)+", "", sections[i].split("@@")[0], re.IGNORECASE)):
-            i += 1
-            continue
-        sections.pop(i)
-        if i >= len(sections): break
-        prefix = sections[i].strip()[:3] if not eng else " ".join(sections[i].strip().split(" ")[:2])
-        while not prefix:
-            sections.pop(i)
-            if i >= len(sections): break
-            prefix = sections[i].strip()[:3] if not eng else " ".join(sections[i].strip().split(" ")[:2])
-        sections.pop(i)
-        if i >= len(sections) or not prefix: break
-        for j in range(i, min(i+128, len(sections))):
-            if not re.match(prefix, sections[j]):
-                continue
-            for _ in range(i, j):sections.pop(i)
-            break
+    remove_contents_table(sections, eng)
 
+    make_colon_as_title(sections)
     bull = bullets_category(sections)
-    projs = [len(BULLET_PATTERN[bull])] * len(sections)
-    for i, sec in enumerate(sections):
-        for j,p in enumerate(BULLET_PATTERN[bull]):
-            if re.match(p, sec.strip()):
-                projs[i] = j
-                break
-    readed = [0] * len(sections)
-    cks = []
-    for pr in range(len(BULLET_PATTERN[bull])-1, 1, -1):
-        for i in range(len(sections)):
-            if readed[i] or projs[i] < pr:
-                continue
-            # find father and grand-father and grand...father
-            p = projs[i]
-            readed[i] = 1
-            ck = [sections[i]]
-            for j in range(i-1, -1, -1):
-                if projs[j] >= p:continue
-                ck.append(sections[j])
-                readed[j] = 1
-                p = projs[j]
-                if p == 0: break
-            cks.append(ck[::-1])
+    cks = hierarchical_merge(bull, sections, 3)
+    if not cks: callback(0.99, "No chunk parsed out.")
 
     res = []
     # wrap up to es documents
@@ -177,4 +117,6 @@ def chunk(filename, binary=None, from_page=0, to_page=100000, callback=None):
 
 if __name__ == "__main__":
     import sys
-    chunk(sys.argv[1])
+    def dummy(a, b):
+        pass
+    chunk(sys.argv[1], callback=dummy)
