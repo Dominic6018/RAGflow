@@ -16,7 +16,6 @@ import styles from './index.less';
 interface IProps {
   selectedChunkId: string;
 }
-
 const HighlightPopup = ({
   comment,
 }: {
@@ -28,6 +27,7 @@ const HighlightPopup = ({
     </div>
   ) : null;
 
+// TODO: merge with DocumentPreviewer
 const Preview = ({ selectedChunkId }: IProps) => {
   const url = useGetDocumentUrl();
   const state = useGetChunkHighlights(selectedChunkId);
