@@ -49,7 +49,7 @@ class Pdf(PdfParser):
 
 def chunk(filename, binary=None, from_page=0, to_page=100000, lang="Chinese", callback=None, **kwargs):
     """
-        Supported file formats are docx, pdf, txt.
+        Supported file formats are docx, pdf, excel, txt.
         This method apply the naive ways to chunk files.
         Successive text will be sliced into pieces using 'delimiter'.
         Next, these successive pieces are merge into chunks whose token number is no more than 'Max token number'.
