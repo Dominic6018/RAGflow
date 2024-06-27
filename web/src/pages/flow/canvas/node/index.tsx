@@ -1,17 +1,13 @@
 import classNames from 'classnames';
 import { Handle, NodeProps, Position } from 'reactflow';
 
-import OperateDropdown from '@/components/operate-dropdown';
-import { CopyOutlined } from '@ant-design/icons';
-import { Flex, MenuProps, Space } from 'antd';
+import { Flex, Space } from 'antd';
 import get from 'lodash/get';
-import { useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import { CategorizeAnchorPointPositions, Operator } from '../../constant';
 import { NodeData } from '../../interface';
 import OperatorIcon from '../../operator-icon';
-import useGraphStore from '../../store';
 import CategorizeHandle from './categorize-handle';
+import NodeDropdown from './dropdown';
 import styles from './index.less';
 
 export function RagNode({
@@ -20,33 +16,8 @@ export function RagNode({
   isConnectable = true,
   selected,
 }: NodeProps<NodeData>) {
-  const { t } = useTranslation();
-  const deleteNodeById = useGraphStore((store) => store.deleteNodeById);
-  const duplicateNodeById = useGraphStore((store) => store.duplicateNode);
-
-  const deleteNode = useCallback(() => {
-    deleteNodeById(id);
-  }, [id, deleteNodeById]);
-
-  const duplicateNode = useCallback(() => {
-    duplicateNodeById(id);
-  }, [id, duplicateNodeById]);
-
   const isCategorize = data.label === Operator.Categorize;
   const categoryData = get(data, 'form.category_description') ?? {};
-
-  const items: MenuProps['items'] = [
-    {
-      key: '2',
-      onClick: duplicateNode,
-      label: (
-        <Flex justify={'space-between'}>
-          {t('common.copy')}
-          <CopyOutlined />
-        </Flex>
-      ),
-    },
-  ];
 
   return (
     <section
@@ -86,11 +57,7 @@ export function RagNode({
             name={data.label as Operator}
             fontSize={16}
           ></OperatorIcon>
-          <OperateDropdown
-            iconFontSize={14}
-            deleteItem={deleteNode}
-            items={items}
-          ></OperateDropdown>
+          <NodeDropdown id={id}></NodeDropdown>
         </Space>
       </Flex>
 
