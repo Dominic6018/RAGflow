@@ -1,16 +1,10 @@
 import { Flex } from 'antd';
 import classNames from 'classnames';
-import get from 'lodash/get';
 import pick from 'lodash/pick';
 import { Handle, NodeProps, Position } from 'reactflow';
-import {
-  CategorizeAnchorPointPositions,
-  Operator,
-  operatorMap,
-} from '../../constant';
+import { Operator, operatorMap } from '../../constant';
 import { NodeData } from '../../interface';
 import OperatorIcon from '../../operator-icon';
-import CategorizeHandle from './categorize-handle';
 import NodeDropdown from './dropdown';
 import styles from './index.less';
 
@@ -20,8 +14,6 @@ export function RagNode({
   isConnectable = true,
   selected,
 }: NodeProps<NodeData>) {
-  const isCategorize = data.label === Operator.Categorize;
-  const categoryData = get(data, 'form.category_description') ?? {};
   const style = operatorMap[data.label as Operator];
 
   return (
@@ -47,16 +39,6 @@ export function RagNode({
         id="b"
       ></Handle>
       <Handle type="source" position={Position.Bottom} id="a" isConnectable />
-      {isCategorize &&
-        Object.keys(categoryData).map((x, idx) => (
-          <CategorizeHandle
-            top={CategorizeAnchorPointPositions[idx].top}
-            right={CategorizeAnchorPointPositions[idx].right}
-            key={idx}
-            text={x}
-            idx={idx}
-          ></CategorizeHandle>
-        ))}
       <Flex vertical align="center" justify={'center'} gap={6}>
         <OperatorIcon
           name={data.label as Operator}
