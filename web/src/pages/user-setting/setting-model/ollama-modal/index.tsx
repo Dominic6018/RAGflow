@@ -101,7 +101,7 @@ const OllamaModal = ({
         <Form.Item<FieldType>
           label={t('modelType')}
           name="model_type"
-          initialValue={'chat'}
+          initialValue={'embedding'}
           rules={[{ required: true, message: t('modelTypeMessage') }]}
         >
           <Select placeholder={t('modelTypeMessage')}>
