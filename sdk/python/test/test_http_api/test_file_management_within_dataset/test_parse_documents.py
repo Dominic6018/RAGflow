@@ -60,7 +60,7 @@ class TestAuthorization:
         assert res["message"] == expected_message
 
 
-class TestDatasetParse:
+class TestDocumentsParse:
     @pytest.mark.parametrize(
         "payload, expected_code, expected_message",
         [
