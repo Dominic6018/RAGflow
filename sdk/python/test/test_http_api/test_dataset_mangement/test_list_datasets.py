@@ -331,6 +331,7 @@ class TestDatasetsList:
             params = {"id": dataset_id, "name": name}
 
         res = list_datasets(get_http_api_auth, params=params)
+        assert res["code"] == expected_code
         if expected_code == 0:
             assert len(res["data"]) == expected_num
         else:
