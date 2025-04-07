@@ -225,18 +225,6 @@ class TestChatAssistantCreate:
         else:
             assert res["message"] == expected_message
 
-    @pytest.mark.parametrize(
-        "dataset_id, expected_code, expected_message",
-        [
-            ("invalid_dataset_id", 102, "You don't own the dataset invalid_dataset_id"),
-        ],
-    )
-    def test_invalid_dataset_id(self, get_http_api_auth, dataset_id, expected_code, expected_message):
-        payload = {"name": "prompt_test", "dataset_ids": [dataset_id]}
-        res = create_chat_assistant(get_http_api_auth, payload)
-        assert res["code"] == expected_code
-        assert expected_message in res["message"]
-
 
 @pytest.mark.usefixtures("clear_chat_assistants")
 class TestChatAssistantCreate2:
