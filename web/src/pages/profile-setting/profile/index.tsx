@@ -121,7 +121,7 @@ const ProfilePage: FC = () => {
   //   };
 
   return (
-    <div className="min-h-screen bg-bg-base text-text-secondary p-5">
+    <div className="h-full bg-bg-base text-text-secondary p-5">
       {/* Header */}
       <header className="flex flex-col gap-1 justify-between items-start mb-6">
         <h1 className="text-2xl font-bold text-text-primary">{t('profile')}</h1>
