@@ -23,14 +23,14 @@ import (
 	"time"
 )
 
-// MinimaxModel implements ModelDriver for Zhipu AI
+// MinimaxModel implements ModelDriver for Minimax
 type MinimaxModel struct {
 	BaseURL    map[string]string
 	URLSuffix  URLSuffix
 	httpClient *http.Client // Reusable HTTP client with connection pool
 }
 
-// NewMinimaxModel creates a new Zhipu AI model instance
+// NewMinimaxModel creates a new Minimax model instance
 func NewMinimaxModel(baseURL map[string]string, urlSuffix URLSuffix) *MinimaxModel {
 	return &MinimaxModel{
 		BaseURL:   baseURL,
