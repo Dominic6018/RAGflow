@@ -591,27 +591,84 @@ class DocumentService(CommonService):
     @classmethod
     @DB.connection_context()
     def increment_chunk_num(cls, doc_id, kb_id, token_num, chunk_num, duration):
-        num = (
-            cls.model.update(token_num=cls.model.token_num + token_num, chunk_num=cls.model.chunk_num + chunk_num, process_duration=cls.model.process_duration + duration)
-            .where(cls.model.id == doc_id)
-            .execute()
-        )
-        if num == 0:
-            logging.warning("Document not found which is supposed to be there")
-        num = Knowledgebase.update(token_num=Knowledgebase.token_num + token_num, chunk_num=Knowledgebase.chunk_num + chunk_num).where(Knowledgebase.id == kb_id).execute()
+        """Atomically add chunk/token counters on the document and its knowledge base."""
+        with DB.atomic():
+            num = (
+                cls.model.update(
+                    token_num=cls.model.token_num + token_num,
+                    chunk_num=cls.model.chunk_num + chunk_num,
+                    process_duration=cls.model.process_duration + duration,
+                )
+                .where((cls.model.id == doc_id) & (cls.model.kb_id == kb_id))
+                .execute()
+            )
+            if num == 0:
+                logging.error(
+                    "increment_chunk_num: no document matched doc_id=%s kb_id=%s "
+                    "token_num=%s chunk_num=%s duration=%s",
+                    doc_id,
+                    kb_id,
+                    token_num,
+                    chunk_num,
+                    duration,
+                )
+                raise LookupError("Document not found which is supposed to be there")
+            num = (
+                Knowledgebase.update(
+                    token_num=Knowledgebase.token_num + token_num,
+                    chunk_num=Knowledgebase.chunk_num + chunk_num,
+                )
+                .where(Knowledgebase.id == kb_id)
+                .execute()
+            )
+            if num == 0:
+                logging.error(
+                    "increment_chunk_num: no knowledgebase matched kb_id=%s for doc_id=%s "
+                    "token_num=%s chunk_num=%s duration=%s",
+                    kb_id,
+                    doc_id,
+                    token_num,
+                    chunk_num,
+                    duration,
+                )
+                raise LookupError("Knowledgebase not found which is supposed to be there")
         return num
 
     @classmethod
     @DB.connection_context()
     def decrement_chunk_num(cls, doc_id, kb_id, token_num, chunk_num, duration):
-        num = (
-            cls.model.update(token_num=cls.model.token_num - token_num, chunk_num=cls.model.chunk_num - chunk_num, process_duration=cls.model.process_duration + duration)
-            .where(cls.model.id == doc_id)
-            .execute()
-        )
-        if num == 0:
-            raise LookupError("Document not found which is supposed to be there")
-        num = Knowledgebase.update(token_num=Knowledgebase.token_num - token_num, chunk_num=Knowledgebase.chunk_num - chunk_num).where(Knowledgebase.id == kb_id).execute()
+        """Atomically subtract chunk/token counters on the document and its knowledge base."""
+        with DB.atomic():
+            num = (
+                cls.model.update(
+                    token_num=cls.model.token_num - token_num,
+                    chunk_num=cls.model.chunk_num - chunk_num,
+                    process_duration=cls.model.process_duration + duration,
+                )
+                .where((cls.model.id == doc_id) & (cls.model.kb_id == kb_id))
+                .execute()
+            )
+            if num == 0:
+                raise LookupError("Document not found which is supposed to be there")
+            num = (
+                Knowledgebase.update(
+                    token_num=Knowledgebase.token_num - token_num,
+                    chunk_num=Knowledgebase.chunk_num - chunk_num,
+                )
+                .where(Knowledgebase.id == kb_id)
+                .execute()
+            )
+            if num == 0:
+                logging.error(
+                    "decrement_chunk_num: no knowledgebase matched kb_id=%s for doc_id=%s "
+                    "token_num=%s chunk_num=%s duration=%s",
+                    kb_id,
+                    doc_id,
+                    token_num,
+                    chunk_num,
+                    duration,
+                )
+                raise LookupError("Knowledgebase not found which is supposed to be there")
         return num
 
     @classmethod
